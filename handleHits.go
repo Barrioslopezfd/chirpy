@@ -23,13 +23,6 @@ func (cfg *apiConfig) handleNumberOfServerHits(w http.ResponseWriter, _ *http.Re
         </html>`, cfg.fileserverHits.Load())))
 }
 
-func (cfg *apiConfig) handleResetServerHits(w http.ResponseWriter, _ *http.Request) {
-    cfg.fileserverHits.Store(0)
-    w.Header().Add("Content-Type", "text/plain; charset=utf-8")
-    w.WriteHeader(200)
-    w.Write([]byte("OK"))
-}
-
 func (cfg *apiConfig) middlewareMetrics(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         next.ServeHTTP(w, r)
