@@ -59,7 +59,10 @@ func main() {
     mux.HandleFunc("GET /api/chirps", apiCfg.GetChirps)
     mux.HandleFunc("GET /api/chirps/{ChirpID}", apiCfg.GetChirpsSingle)
 
-    mux.HandleFunc("POST /api/users", apiCfg.createUser)
+    mux.HandleFunc("POST /api/users", apiCfg.CreateUser)
+    mux.HandleFunc("POST /api/login", apiCfg.LoginUser)
+
+
     mux.HandleFunc("GET /admin/metrics", apiCfg.handleNumberOfServerHits)
     mux.HandleFunc("POST /admin/reset", apiCfg.resetUsers)
     log.Fatal(server.ListenAndServe())

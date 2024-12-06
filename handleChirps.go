@@ -21,7 +21,6 @@ type Chirp struct {
 
 func (cfg *apiConfig) CreateChirp(w http.ResponseWriter, r *http.Request) {
 
-
     type valid_ch struct {
         Body        string      `json:"body"`
         UserID      uuid.UUID   `json:"user_id"`
