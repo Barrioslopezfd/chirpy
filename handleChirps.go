@@ -1,4 +1,5 @@
 package main
+
 import (
 	"encoding/json"
 	"fmt"
@@ -7,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Barrioslopezfd/chirpy/internal/auth"
 	"github.com/Barrioslopezfd/chirpy/internal/database"
 	"github.com/google/uuid"
 )
@@ -23,7 +25,7 @@ func (cfg *apiConfig) CreateChirp(w http.ResponseWriter, r *http.Request) {
 
     type valid_ch struct {
         Body        string      `json:"body"`
-        UserID      uuid.UUID   `json:"user_id"`
+        UserID       string   `json:"user_id"`
     }
 
     var ch valid_ch
@@ -40,9 +42,21 @@ func (cfg *apiConfig) CreateChirp(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    token, err := auth.GetBearerToken(r.Header)
+    if err != nil {
+        responseWithError(w, 401, fmt.Sprint(err))
+        return
+    }
+
+    UID, err := auth.ValidateJWT(token, cfg.jwtSecret)
+    if err != nil {
+        responseWithError(w, 401, "Unauthorized")
+        return
+    }
+
     chirp_param:= database.CreateChirpParams{
         Body:   valid_body,
-        UserID: ch.UserID,
+        UserID: UID,
     }
 
     dbchirp, err := cfg.db.CreateChirp(r.Context(), chirp_param)

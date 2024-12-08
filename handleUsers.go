@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/Barrioslopezfd/chirpy/internal/auth"
 	"github.com/Barrioslopezfd/chirpy/internal/database"
@@ -11,17 +12,27 @@ import (
 
 type parameter struct {
     Password    string  `json:"password"`
-    Email       string  `json:"email"`
+    Email   string  `json:"email"`
+    ExpiresInSeconds    time.Duration   `json:"expires_in_seconds"`
 }
 
 func (cfg *apiConfig) LoginUser(w http.ResponseWriter, r *http.Request){
     decoder := json.NewDecoder(r.Body)
-    var param parameter
-    err := decoder.Decode(&param)
+    defaultExpiration, err := time.ParseDuration("3600s")
+    if err != nil {
+        responseWithError(w, 500, "Error setting default expiration")
+        return
+    }
+    param := parameter{
+        ExpiresInSeconds: defaultExpiration,
+    }
+    err = decoder.Decode(&param)
     if err != nil {
         responseWithError(w, 500, "Error decoding json")
         return
     }
+
+
     usr, err := cfg.db.GetUserByEmail(r.Context(), param.Email)
     if err != nil {
         responseWithError(w, 404, "Incorrect email")
@@ -32,17 +43,24 @@ func (cfg *apiConfig) LoginUser(w http.ResponseWriter, r *http.Request){
         responseWithError(w, 401, "Incorrect email or password")
         return 
     }
+    token, err := auth.MakeJWT(usr.ID, cfg.jwtSecret, param.ExpiresInSeconds)
+    if err != nil {
+        responseWithError(w, 500, fmt.Sprintf("Error making JWT: %v", err))
+        return
+    }
     usrJson, err := json.Marshal(User{
         ID: usr.ID,
         CreatedAt: usr.CreatedAt,
         UpdatedAt: usr.UpdatedAt,
         Email: usr.Email,
+        Token: token,
     })
     if err != nil {
         responseWithError(w, 500, "Error marshaling json")
         return
     }
     w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Authorization", token)
     w.WriteHeader(200)
     w.Write([]byte(usrJson))
 }
