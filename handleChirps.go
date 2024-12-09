@@ -194,3 +194,38 @@ func responseWithError(w http.ResponseWriter, code int, msg string) {
     w.Write(datWrong)
 }
 
+func (cfg *apiConfig) DeleteChirp(w http.ResponseWriter, r *http.Request){
+    token, err := auth.GetBearerToken(r.Header)
+    if err != nil {
+        responseWithError(w, http.StatusUnauthorized, "Unauthorized")
+        return
+    }
+    uid, err := auth.ValidateJWT(token, cfg.jwtSecret)
+    if err != nil {
+        responseWithError(w, http.StatusUnauthorized, "Unauthorized")
+        return
+    }
+    cid := r.PathValue("ChirpID")
+    cuid, err:=uuid.Parse(cid)
+    if err != nil {
+        responseWithError(w, http.StatusBadRequest, "Bad Request")
+        return
+    }
+    chirp, err := cfg.db.GetChirpsSingle(r.Context(), cuid)
+    if err != nil {
+        responseWithError(w, http.StatusNotFound, "Not Found")
+        return
+    }
+    if chirp.UserID != uid {
+        responseWithError(w, http.StatusForbidden, "Forbidden Action")
+    }
+    err = cfg.db.DeleteChirp(r.Context(), database.DeleteChirpParams{
+        ID: cuid,
+        UserID: uid,
+    })
+    if err != nil {
+        responseWithError(w, http.StatusForbidden, fmt.Sprint(err))
+        return
+    }
+    w.WriteHeader(http.StatusNoContent)
+}

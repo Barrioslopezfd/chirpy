@@ -8,6 +8,7 @@ import (
 
 	"github.com/Barrioslopezfd/chirpy/internal/auth"
 	"github.com/Barrioslopezfd/chirpy/internal/database"
+	"github.com/google/uuid"
 )
 
 type parameter struct {
@@ -55,7 +56,6 @@ func (cfg *apiConfig) LoginUser(w http.ResponseWriter, r *http.Request){
         responseWithError(w, 500, fmt.Sprintf("ERROR CREATING REFRESH TOKEN: %v", err))
         return
     }
-
     usrJson, err := json.Marshal(User{
         ID: usr.ID,
         CreatedAt: usr.CreatedAt,
@@ -63,6 +63,7 @@ func (cfg *apiConfig) LoginUser(w http.ResponseWriter, r *http.Request){
         Email: usr.Email,
         Token: token,
         RefreshToken: refTok,
+        IsChirpyRed: usr.IsChirpyRed,
     })
     if err != nil {
         responseWithError(w, 500, "Error marshaling json")
@@ -104,6 +105,7 @@ func (cfg *apiConfig) CreateUser(w http.ResponseWriter, r *http.Request) {
         CreatedAt: usr.CreatedAt,
         UpdatedAt: usr.UpdatedAt,
         Email: usr.Email,
+        IsChirpyRed: usr.IsChirpyRed,
     }
 
     usrJson, err := json.Marshal(user_t)
@@ -185,4 +187,46 @@ func (cfg *apiConfig) HandleUserInfo(w http.ResponseWriter, r *http.Request){
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusOK)
     w.Write(dat)
+}
+
+func (cfg *apiConfig) UpgradeToChirpyRed(w http.ResponseWriter, r *http.Request){
+    apiKey, err := auth.GetAPIKey(r.Header)
+    if cfg.polkaKey != apiKey {
+        responseWithError(w, http.StatusUnauthorized, err.Error())
+        return
+    }
+    if err != nil {
+        responseWithError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+    type parameter struct {
+        Event string `json:"event"`
+        Data  struct {
+            UserID string `json:"user_id"`
+        } `json:"data"`
+    }
+
+    decoder := json.NewDecoder(r.Body)
+    var param parameter
+    err = decoder.Decode(&param)
+    if err != nil {
+        responseWithError(w, http.StatusInternalServerError, fmt.Sprint(err))
+        return
+    }
+    if param.Event != "user.upgraded" {
+        w.WriteHeader(http.StatusNoContent)
+        return
+    }
+
+    uid, err := uuid.Parse(param.Data.UserID)
+    if err != nil {
+        responseWithError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+    err = cfg.db.UpgradeToChirpy(r.Context(), uid)
+    if err != nil {
+        responseWithError(w, http.StatusNotFound, err.Error())
+        return
+    }
+    w.WriteHeader(http.StatusNoContent)
 }
