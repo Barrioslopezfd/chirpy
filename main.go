@@ -22,11 +22,12 @@ type apiConfig struct {
 }
 
 type User struct {
-    ID		uuid.UUID   `json:"id"`
-    CreatedAt	time.Time   `json:"created_at"`
-    UpdatedAt	time.Time   `json:"updated_at"`
-    Email	string	    `json:"email"`
-    Token	string	    `json:"token"`
+    ID		    uuid.UUID   `json:"id"`
+    CreatedAt	    time.Time   `json:"created_at"`
+    UpdatedAt	    time.Time   `json:"updated_at"`
+    Email	    string	`json:"email"`
+    Token	    string	`json:"token"`
+    RefreshToken    string	`json:"refresh_token"`
 }
 
 func main() {
@@ -65,6 +66,8 @@ func main() {
 
     mux.HandleFunc("POST /api/users", apiCfg.CreateUser)
     mux.HandleFunc("POST /api/login", apiCfg.LoginUser)
+    mux.HandleFunc("POST /api/refresh", apiCfg.RefreshAccessToken)
+    mux.HandleFunc("POST /api/revoke", apiCfg.RevokeRefreshToken)
 
 
     mux.HandleFunc("GET /admin/metrics", apiCfg.handleNumberOfServerHits)

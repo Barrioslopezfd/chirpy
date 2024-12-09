@@ -47,7 +47,6 @@ func (cfg *apiConfig) CreateChirp(w http.ResponseWriter, r *http.Request) {
         responseWithError(w, 401, fmt.Sprint(err))
         return
     }
-
     UID, err := auth.ValidateJWT(token, cfg.jwtSecret)
     if err != nil {
         responseWithError(w, 401, "Unauthorized")

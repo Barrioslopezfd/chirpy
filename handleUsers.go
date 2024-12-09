@@ -13,25 +13,16 @@ import (
 type parameter struct {
     Password    string  `json:"password"`
     Email   string  `json:"email"`
-    ExpiresInSeconds    time.Duration   `json:"expires_in_seconds"`
 }
 
 func (cfg *apiConfig) LoginUser(w http.ResponseWriter, r *http.Request){
     decoder := json.NewDecoder(r.Body)
-    defaultExpiration, err := time.ParseDuration("3600s")
-    if err != nil {
-        responseWithError(w, 500, "Error setting default expiration")
-        return
-    }
-    param := parameter{
-        ExpiresInSeconds: defaultExpiration,
-    }
-    err = decoder.Decode(&param)
+    var param parameter
+    err := decoder.Decode(&param)
     if err != nil {
         responseWithError(w, 500, "Error decoding json")
         return
     }
-
 
     usr, err := cfg.db.GetUserByEmail(r.Context(), param.Email)
     if err != nil {
@@ -43,17 +34,35 @@ func (cfg *apiConfig) LoginUser(w http.ResponseWriter, r *http.Request){
         responseWithError(w, 401, "Incorrect email or password")
         return 
     }
-    token, err := auth.MakeJWT(usr.ID, cfg.jwtSecret, param.ExpiresInSeconds)
+    token, err := auth.MakeJWT(usr.ID, cfg.jwtSecret)
     if err != nil {
-        responseWithError(w, 500, fmt.Sprintf("Error making JWT: %v", err))
+        responseWithError(w, 500, fmt.Sprintf("JWT MAKING ERROR: %v", err))
         return
     }
+    refTok, err := auth.MakeRefreshToken()
+    if err != nil {
+        responseWithError(w, 500, fmt.Sprint(err))
+        return
+    }
+
+    _ , err=cfg.db.CreateRefreshToken(r.Context(), database. CreateRefreshTokenParams{
+        Token: refTok,
+        UserID: usr.ID,
+        ExpiresAt: time.Now().Add(1440*time.Hour),
+    })
+
+    if err != nil {
+        responseWithError(w, 500, fmt.Sprintf("ERROR CREATING REFRESH TOKEN: %v", err))
+        return
+    }
+
     usrJson, err := json.Marshal(User{
         ID: usr.ID,
         CreatedAt: usr.CreatedAt,
         UpdatedAt: usr.UpdatedAt,
         Email: usr.Email,
         Token: token,
+        RefreshToken: refTok,
     })
     if err != nil {
         responseWithError(w, 500, "Error marshaling json")
