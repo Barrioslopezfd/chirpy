@@ -133,3 +133,56 @@ func (cfg *apiConfig) resetUsers(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte("OK"))
 }
 
+func (cfg *apiConfig) HandleUserInfo(w http.ResponseWriter, r *http.Request){
+
+    token, err := auth.GetBearerToken(r.Header)
+    if err != nil {
+        responseWithError(w, http.StatusUnauthorized, "Unauthorized")
+        return
+    }
+    type parameter struct{
+        Password    string
+        Email       string
+    }
+    decoder := json.NewDecoder(r.Body)
+    var param parameter
+    err = decoder.Decode(&param)
+    if err != nil {
+        responseWithError(w, http.StatusUnauthorized, "Unauthorized")
+        return
+    }
+    hash,err:=auth.HashPassword(param.Password)
+    if err != nil {
+        responseWithError(w, http.StatusInternalServerError, fmt.Sprint("Error hashing Password: ", err))
+        return
+    }
+    usrID, err:=auth.ValidateJWT(token, cfg.jwtSecret)
+    if err != nil {
+        responseWithError(w, http.StatusUnauthorized, fmt.Sprint("Error validating JWT: ",err))
+        return
+    }
+    change := database.ChangeEmailAndPasswordParams{
+        ID: usrID,
+        Email: param.Email,
+        HashedPassword: hash,
+    }
+    err=cfg.db.ChangeEmailAndPassword(r.Context(), change)
+    if err != nil {
+        responseWithError(w, http.StatusInternalServerError, fmt.Sprint("Error changing email and password: ", err))
+        return
+    }
+
+    type data struct {
+        Token   string  `json:"token"`
+        Email   string  `json:"email"`
+    }
+
+    dat, err := json.Marshal(data{
+        Token:  token,
+        Email:  param.Email,
+    })
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    w.Write(dat)
+}
