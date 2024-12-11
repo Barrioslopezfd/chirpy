@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -97,11 +99,14 @@ func (cfg *apiConfig) validateChirp(Chirp string) (cleaned_body string, err erro
 }
 
 func (cfg *apiConfig) GetChirps(w http.ResponseWriter, r *http.Request) {
-    var myChirps []Chirp
 
-    dbChirp,err:=cfg.db.GetChirps(r.Context())
+    user_id := r.URL.Query().Get("author_id")
+    sort := r.URL.Query().Get("sort")
+
+    var myChirps []Chirp
+    dbChirp, err := cfg.getChirpsWithParam(sort, user_id, r.Context())
     if err != nil {
-        responseWithError(w, 400, "Error getting chirps")
+        responseWithError(w, http.StatusBadRequest, err.Error())
         return
     }
     for i := range dbChirp {
@@ -228,4 +233,44 @@ func (cfg *apiConfig) DeleteChirp(w http.ResponseWriter, r *http.Request){
         return
     }
     w.WriteHeader(http.StatusNoContent)
+}
+
+func (cfg *apiConfig) getChirpsWithParam (sort, author_id string, ctx context.Context) ([]database.Chirp, error) {
+    
+    if sort!="asc" && sort!="desc" && sort!="" {
+        return nil, errors.New("Invalid sort parameter")
+    }
+
+    var dbChirp []database.Chirp
+    var err error
+
+    if sort == "asc" || sort == "" {
+        if author_id == "" {
+            dbChirp,err=cfg.db.GetChirpsASC(ctx)
+            if err != nil {
+                return nil, err
+            }
+        } else {
+            uid, err := uuid.Parse(author_id)
+            if err != nil {
+                return nil, err
+            }
+            dbChirp, err=cfg.db.GetChirpsByIDASC(ctx, uid)
+        }
+    }
+    if sort == "desc" {
+        if author_id == ""{
+            dbChirp,err=cfg.db.GetChirpsDESC(ctx)
+            if err != nil {
+                return nil, err
+            }
+        } else {
+            uid, err := uuid.Parse(author_id)
+            if err != nil {
+                return nil, err
+            }
+            dbChirp, err=cfg.db.GetChirpsByIDDESC(ctx, uid)
+        }
+    }
+    return dbChirp, nil
 }
