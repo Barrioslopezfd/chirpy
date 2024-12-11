@@ -230,3 +230,47 @@ func (cfg *apiConfig) UpgradeToChirpyRed(w http.ResponseWriter, r *http.Request)
     }
     w.WriteHeader(http.StatusNoContent)
 }
+
+func (cfg *apiConfig) GetAllUsers(w http.ResponseWriter, r *http.Request){
+    allUsrs, err:=cfg.db.GetAllUsers(r.Context())
+    if err != nil {
+        responseWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+
+    data, err := json.Marshal(allUsrs)
+    if err != nil {
+        responseWithError(w, http.StatusInternalServerError, err.Error())
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    w.Write(data)
+}
+
+func (cfg *apiConfig) GetAUser(w http.ResponseWriter, r *http.Request){
+    uid, err := uuid.Parse(r.PathValue("UserID"))
+    if err != nil {
+        responseWithError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+    usr, err := cfg.db.GetUserByID(r.Context(), uid)
+    if err != nil {
+        responseWithError(w, http.StatusNotFound, err.Error())
+        return
+    }
+    dat, err := json.Marshal(User{
+        ID: usr.ID,
+        CreatedAt: usr.CreatedAt,
+        UpdatedAt: usr.UpdatedAt,
+        Email: usr.Email,
+            IsChirpyRed: usr.IsChirpyRed,
+    })
+    if err != nil {
+        responseWithError(w, http.StatusBadRequest, err.Error())
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    w.Write(dat)
+}

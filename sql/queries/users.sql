@@ -29,3 +29,10 @@ WHERE id = $1;
 UPDATE users
 SET is_chirpy_red = true
 WHERE id = $1;
+
+-- name: GetAllUsers :many
+SELECT * FROM users;
+
+-- name: GetUserByID :one
+SELECT * FROM users
+WHERE id = $1;
