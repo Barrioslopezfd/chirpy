@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -34,6 +35,7 @@ type User struct {
 
 func main() {
 
+    fmt.Println("Server started")
     godotenv.Load()
     dbURL := os.Getenv("DB_URL")
     platform := os.Getenv("PLATFORM")
@@ -61,6 +63,7 @@ func main() {
         "/app/", 
         apiCfg.middlewareMetrics(http.StripPrefix("/app", http.FileServer(http.Dir(".")))),
     )
+    fmt.Println("Server port: ", server.Addr)
 
     mux.HandleFunc("POST /api/chirps", apiCfg.CreateChirp)
     mux.HandleFunc("GET /api/chirps", apiCfg.GetChirps)
